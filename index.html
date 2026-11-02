@@ -81,7 +81,7 @@ const linkLive = u => /^https?:\/\//i.test(u || '') ? `<a href="${esc(u)}" targe
 function toast(t){ const e = $('#toast'); ($('#dlg').open ? $('#dlg') : document.body).append(e); e.textContent = t; e.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = 'none', 4000); }
 const check = r => { if (r.error) { toast(r.error.message); throw r.error; } return r.data; };
 
-const S = {eu:null, tab:'geral', mes:hoje().slice(0,7), filtro:'', fStatus:'', hist:[], busca:'', visao:'cards', abertos:new Set(), membros:[], lives:[], vendas:[], modo:'entrar'};
+const S = {eu:null, tab:'geral', mes:hoje().slice(0,7), filtro:'', fStatus:'', hist:[], busca:'', grupo:'funcionario', abertos:new Set(), membros:[], lives:[], vendas:[], modo:'entrar'};
 
 function limitesMes(){
   const [y, m] = S.mes.split('-').map(Number);
@@ -225,7 +225,7 @@ function telaAdmin(){
   </nav>${corpo}</main>`;
 }
 
-const equipe = () => S.membros.filter(m => m.papel !== 'admin' && m.ativo && (!S.filtro || m.papel === S.filtro)
+const equipe = () => S.membros.filter(m => m.papel === S.grupo && m.ativo
   && (!S.fStatus || statusInfo(m).atual.status === S.fStatus)
   && (m.nome + ' ' + m.email).toLowerCase().includes(S.busca.toLowerCase()));
 const filtroPapel = () => `<select id="filtro" style="width:auto" aria-label="Filtrar por tipo">
@@ -248,9 +248,8 @@ function abaGeral(){
   </div>
   <div class="toolbar">
     <input id="busca" type="search" placeholder="Buscar pessoa ou e-mail..." value="${esc(S.busca)}" aria-label="Buscar">
-    ${filtroPapel()}
     <select id="fStatus" aria-label="Filtrar por status"><option value="">Todos os status</option>${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${S.fStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
-    <div class="seg"><button class="${S.visao === 'cards' ? 'on' : ''}" data-a="visao" data-id="cards">Por pessoa</button><button class="${S.visao === 'tabela' ? 'on' : ''}" data-a="visao" data-id="tabela">Tabela geral</button></div>
+    <div class="seg"><button class="${S.grupo === 'funcionario' ? 'on' : ''}" data-a="grupo" data-id="funcionario">Funcionários (${func.length})</button><button class="${S.grupo === 'afiliado' ? 'on' : ''}" data-a="grupo" data-id="afiliado">Afiliados (${dados.length - func.length})</button></div>
   </div>
   <div id="lista">${listaEquipe()}</div>`;
 }
@@ -258,13 +257,6 @@ function abaGeral(){
 function listaEquipe(){
   const dados = equipe().map(m => ({m, r:resumo(m)}));
   if (!dados.length) return '<div class="card mut">Ninguém encontrado. Use "+ Nova pessoa" para cadastrar.</div>';
-  if (S.visao === 'tabela') return `<div class="card scroll"><table><tr><th>Nome</th><th>Tipo</th><th>Status</th><th>Agora</th><th>Hoje</th><th>Dias na meta</th><th>Lives/mês</th><th>Horas/mês</th><th>Vendas</th><th>A pagar</th></tr>
-  ${dados.map(({m, r}) => { const meta = Number(m.meta_horas_dia), st = statusInfo(m).atual; return `<tr><td>${esc(m.nome)}</td><td>${tagPapel(m.papel)}</td>
-    <td><span class="tag ${TAG_ST[st.status]}">${STATUS[st.status]} ${st.dias}d</span></td>
-    <td>${r.aberta ? `<span class="tag live">● ${esc(r.aberta.produto)} ${fmtH(horas(r.aberta))}</span>` : '<span class="mut">offline</span>'}</td>
-    <td>${fmtH(r.hHoje)}${meta ? ` <span class="tag ${r.hHoje >= meta ? 'live' : 'no'}">${meta}h</span>` : ''}</td>
-    <td>${meta ? r.diasMeta : '-'}</td><td>${r.qtd}</td><td>${fmtH(r.hMes)}</td><td>${brl(r.vendas)}</td><td><b>${brl(r.total)}</b></td></tr>`; }).join('')}
-  </table></div>`;
   return dados.map(({m, r}) => { const meta = Number(m.meta_horas_dia), st = statusInfo(m).atual; return `<details class="item" data-m="${m.id}" ${S.abertos.has(m.id) ? 'open' : ''}><summary>
     <span class="chev">›</span>
     <div class="quem"><b>${esc(m.nome)}</b>${tagPapel(m.papel)}<small>${r.qtd} lives · ${fmtH(r.hMes)} no mês</small></div>
@@ -330,7 +322,7 @@ const ACOES = {
   modo(){ S.modo = S.modo === 'novo' ? 'entrar' : 'novo'; telaLogin(); },
   async sair(){ await sb.auth.signOut(); S.modo = 'entrar'; iniciar(); },
   aba(id){ S.tab = id; telaAdmin(); },
-  visao(id){ S.visao = id; telaAdmin(); },
+  grupo(id){ S.grupo = id; telaAdmin(); },
   novaPessoa(){ abrirPessoa(); },
   editPessoa(id){ abrirPessoa(S.membros.find(m => m.id === id)); },
   fechar(){ $('#dlg').close(); },
@@ -382,7 +374,7 @@ const FORMS = {
     const reg = {nome:d.nome.trim(), email:d.email.trim().toLowerCase(), papel:d.papel, salario_fixo:d.salario_fixo || 0,
       comissao_pct:d.comissao_pct || 0, meta_horas_dia:d.meta_horas_dia || 0, ativo:!!d.ativo};
     check(d.pid ? await sb.from('pas_membros').update(reg).eq('id', d.pid) : await sb.from('pas_membros').insert(reg));
-    $('#dlg').close(); S.filtro = ''; toast('Salvo.'); carregar();
+    $('#dlg').close(); S.filtro = ''; if (reg.papel !== 'admin') S.grupo = reg.papel; toast('Salvo.'); carregar();
   },
 };
 
@@ -397,7 +389,7 @@ document.addEventListener('change', e => {
   if (e.target.id === 'fStatus') { S.fStatus = e.target.value; $('#lista').innerHTML = listaEquipe(); }
   if (e.target.dataset.status) mudarStatus(e.target.dataset.status, e.target.value);
   if (e.target.dataset.desde && e.target.value) mudarDesde(e.target.dataset.desde, e.target.value);
-  if (e.target.id === 'filtro') { S.filtro = e.target.value; S.tab === 'geral' ? ($('#lista').innerHTML = listaEquipe()) : telaAdmin(); }
+  if (e.target.id === 'filtro') { S.filtro = e.target.value; telaAdmin(); }
   if (e.target.name === 'papel' && !$('#fPessoa [name=pid]').value) {
     const f = e.target.form, p = {funcionario:[3000, 0, 4], afiliado:[0, 50, 0], admin:[0, 0, 0]}[e.target.value];
     f.salario_fixo.value = p[0]; f.comissao_pct.value = p[1]; f.meta_horas_dia.value = p[2];

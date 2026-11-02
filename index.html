@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel PAS</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--or:#EE4D2D;--or2:#FF7337;--bg:#FFF8F5;--line:#F3E1DA;--tx:#2B2522;--mut:#7A6F6A;--ok:#14804A;--okb:#E5F6EC;--bad:#B3261E;--badb:#FDECEA}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:var(--or);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header b{font-size:18px;margin-right:auto}
+header button{background:#fff;color:var(--or);padding:6px 12px}
+main{max-width:1100px;margin:auto;padding:16px}
+nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+nav button{background:#fff;color:var(--tx);border:1px solid var(--line)}
+nav button.on{background:var(--or);color:#fff;border-color:var(--or)}
+nav input{margin-left:auto;width:auto}
+button{background:var(--or);color:#fff;border:0;border-radius:8px;padding:9px 14px;font:inherit;font-weight:600;cursor:pointer}
+button:hover{filter:brightness(.95)}
+button.sec{background:#fff;color:var(--or);border:1px solid var(--or)}
+button.mini{padding:4px 9px;font-size:13px}
+button.lnk{background:none;color:var(--or);padding:0;font-weight:500}
+input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:var(--tx)}
+label{display:block;font-size:13px;color:var(--mut);margin-bottom:10px}
+label input,label select{margin-top:3px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat small{color:var(--mut);display:block}.stat b{font-size:22px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;color:var(--mut);font-weight:600;font-size:13px;white-space:nowrap}
+th,td{padding:8px;border-bottom:1px solid var(--line)}td{white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.tag{display:inline-block;border-radius:99px;padding:1px 9px;font-size:12px;font-weight:600;background:#FFEDE6;color:var(--or)}
+.tag.func{background:#EEF0F4;color:#44506A}.tag.live{background:var(--okb);color:var(--ok)}.tag.no{background:var(--badb);color:var(--bad)}
+.row{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:10px}
+.row h3{margin:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0 12px}
+.login{max-width:380px;margin:9vh auto}.login h1{color:var(--or);margin:0 0 4px}
+.big{width:100%;padding:22px;font-size:20px;border-radius:12px}.big.stop{background:var(--tx)}
+.mut{color:var(--mut)}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--tx);color:#fff;padding:10px 16px;border-radius:8px;display:none;max-width:90vw}
+dialog{border:0;border-radius:12px;padding:18px;width:min(460px,92vw)}dialog::backdrop{background:#0006}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<dialog id="dlg"></dialog>
+<div id="toast"></div>
+<script>
+const sb = supabase.createClient('https://tbdipwdxadqisoqnbwhq.supabase.co', 'sb_publishable_lDjxWkouQnEViknasVpwjw_WdN4gw7E');
+const TZ = 'America/Sao_Paulo';
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const brl = n => Number(n || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+const dia = d => new Date(d).toLocaleDateString('en-CA', {timeZone: TZ});
+const hoje = () => dia(new Date());
+const dtHora = d => new Date(d).toLocaleString('pt-BR', {timeZone: TZ, day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+const horas = l => ((l.fim ? new Date(l.fim) : new Date()) - new Date(l.inicio)) / 36e5;
+const fmtH = h => { const m = Math.round(h * 60); return `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`; };
+const PAPEL = {admin:'Administrador', funcionario:'Funcionário', afiliado:'Afiliado'};
+const tagPapel = p => `<span class="tag ${p === 'funcionario' ? 'func' : ''}">${PAPEL[p]}</span>`;
+const linkLive = u => /^https?:\/\//i.test(u || '') ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">abrir</a>` : '';
+function toast(t){ const e = $('#toast'); e.textContent = t; e.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = 'none', 4000); }
+const check = r => { if (r.error) { toast(r.error.message); throw r.error; } return r.data; };
+
+const S = {eu:null, tab:'geral', mes:hoje().slice(0,7), filtro:'', membros:[], lives:[], vendas:[], modo:'entrar'};
+
+function limitesMes(){
+  const [y, m] = S.mes.split('-').map(Number);
+  const prox = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+  return {ini:`${S.mes}-01T00:00:00-03:00`, fim:`${prox}-01T00:00:00-03:00`, dIni:`${S.mes}-01`, dFim:`${prox}-01`};
+}
+
+async function iniciar(){
+  const {data:{session}} = await sb.auth.getSession();
+  if (!session) { S.eu = null; return telaLogin(); }
+  S.eu = check(await sb.from('pas_membros').select('*').eq('email', session.user.email.toLowerCase()).eq('ativo', true).maybeSingle());
+  if (!S.eu) return telaSemAcesso(session.user.email);
+  await carregar();
+}
+
+async function carregar(){
+  const b = limitesMes();
+  const [m, l, a, v] = await Promise.all([
+    sb.from('pas_membros').select('*').order('nome'),
+    sb.from('pas_lives').select('*').gte('inicio', b.ini).lt('inicio', b.fim).order('inicio', {ascending:false}),
+    sb.from('pas_lives').select('*').is('fim', null),
+    sb.from('pas_vendas').select('*').gte('data', b.dIni).lt('data', b.dFim).order('data', {ascending:false}),
+  ]);
+  S.membros = check(m);
+  const abertas = check(a), lista = check(l);
+  S.lives = lista.concat(abertas.filter(x => !lista.some(y => y.id === x.id)));
+  S.vendas = check(v);
+  S.eu.papel === 'admin' ? telaAdmin() : telaMembro();
+}
+
+function resumo(m){
+  const lives = S.lives.filter(l => l.membro_id === m.id);
+  const noMes = lives.filter(l => dia(l.inicio).slice(0,7) === S.mes);
+  const porDia = {};
+  noMes.forEach(l => { const d = dia(l.inicio); porDia[d] = (porDia[d] || 0) + horas(l); });
+  const vendas = S.vendas.filter(v => v.membro_id === m.id).reduce((s, v) => s + Number(v.valor), 0);
+  const comissao = vendas * Number(m.comissao_pct) / 100;
+  return {
+    aberta: lives.find(l => !l.fim),
+    qtd: noMes.length,
+    hHoje: porDia[hoje()] || 0,
+    hMes: Object.values(porDia).reduce((s, h) => s + h, 0),
+    diasMeta: Object.values(porDia).filter(h => h >= Number(m.meta_horas_dia)).length,
+    vendas, comissao, total: Number(m.salario_fixo) + comissao,
+  };
+}
+
+function telaLogin(){
+  const novo = S.modo === 'novo';
+  $('#app').innerHTML = `<div class="login card">
+    <h1>Painel PAS</h1>
+    <p class="mut">${novo ? 'Crie sua senha com o e-mail que foi cadastrado no painel.' : 'Entre para bater o ponto ou acompanhar as lives.'}</p>
+    <form id="fLogin">
+      <label>E-mail<input name="email" type="email" required autocomplete="email"></label>
+      <label>Senha<input name="senha" type="password" required minlength="8" autocomplete="${novo ? 'new-password' : 'current-password'}"></label>
+      <button style="width:100%">${novo ? 'Criar acesso' : 'Entrar'}</button>
+    </form>
+    <p style="margin-bottom:0"><button class="lnk" data-a="modo">${novo ? 'Já tenho senha' : 'Primeiro acesso? Criar senha'}</button></p>
+  </div>`;
+}
+
+function telaSemAcesso(email){
+  $('#app').innerHTML = `<div class="login card"><h1>Acesso pendente</h1>
+    <p>O e-mail <b>${esc(email)}</b> ainda não está cadastrado no Painel PAS. Peça para um administrador adicionar você.</p>
+    <button class="sec" data-a="sair">Sair</button></div>`;
+}
+
+const topo = () => `<header><b>Painel PAS</b><span>${esc(S.eu.nome)}</span><button data-a="sair">Sair</button></header>`;
+
+function telaMembro(){
+  const r = resumo(S.eu), m = S.eu, meta = Number(m.meta_horas_dia);
+  const minhas = S.lives.filter(l => l.membro_id === m.id);
+  $('#app').innerHTML = topo() + `<main>
+    <div class="card">
+      ${r.aberta
+        ? `<p style="margin-top:0"><span class="tag live">● Em live</span> ${esc(r.aberta.produto)} desde ${dtHora(r.aberta.inicio)} (${fmtH(horas(r.aberta))})</p>
+           <button class="big stop" data-a="parar">Encerrar live</button>`
+        : `<form id="fPonto"><div class="grid2">
+             <label>Produto<select name="produto"><option>PAS</option><option>Grok</option></select></label>
+             <label>Link da live (opcional)<input name="link" type="url" placeholder="https://"></label></div>
+             <button class="big">▶ Iniciar live</button></form>`}
+    </div>
+    <div class="stats">
+      <div class="stat"><small>Horas hoje${meta ? ` (meta ${meta}h)` : ''}</small><b>${fmtH(r.hHoje)}</b></div>
+      <div class="stat"><small>Horas no mês</small><b>${fmtH(r.hMes)}</b></div>
+      <div class="stat"><small>Lives no mês</small><b>${r.qtd}</b></div>
+      <div class="stat"><small>Vendas no mês</small><b>${brl(r.vendas)}</b></div>
+      <div class="stat"><small>A receber (${Number(m.comissao_pct)}% comissão${Number(m.salario_fixo) ? ' + fixo' : ''})</small><b>${brl(r.total)}</b></div>
+    </div>
+    <div class="card"><h3 style="margin-top:0">Minhas lives do mês</h3>${tabelaLives(minhas, false)}</div>
+  </main>`;
+}
+
+function tabelaLives(lista, admin){
+  if (!lista.length) return '<p class="mut">Nenhuma live neste período.</p>';
+  const nome = id => (S.membros.find(m => m.id === id) || {}).nome || '-';
+  return `<div class="scroll"><table><tr>${admin ? '<th>Pessoa</th>' : ''}<th>Produto</th><th>Início</th><th>Fim</th><th>Duração</th><th>Link</th>${admin ? '<th></th>' : ''}</tr>
+  ${lista.map(l => `<tr>${admin ? `<td>${esc(nome(l.membro_id))}</td>` : ''}<td>${esc(l.produto)}</td><td>${dtHora(l.inicio)}</td>
+    <td>${l.fim ? dtHora(l.fim) : '<span class="tag live">● ao vivo</span>'}</td><td>${fmtH(horas(l))}</td><td>${linkLive(l.link_live)}</td>
+    ${admin ? `<td>${l.fim ? '' : `<button class="mini sec" data-a="fecharLive" data-id="${l.id}">Encerrar</button> `}<button class="mini sec" data-a="delLive" data-id="${l.id}">Excluir</button></td>` : ''}</tr>`).join('')}
+  </table></div>`;
+}
+
+function telaAdmin(){
+  const abas = {geral:'Visão geral', pessoas:'Pessoas', lives:'Lives', vendas:'Vendas'};
+  const corpo = {geral:abaGeral, pessoas:abaPessoas, lives:abaLives, vendas:abaVendas}[S.tab]();
+  $('#app').innerHTML = topo() + `<main><nav>
+    ${Object.entries(abas).map(([k, v]) => `<button class="${S.tab === k ? 'on' : ''}" data-a="aba" data-id="${k}">${v}</button>`).join('')}
+    <input type="month" id="mes" value="${S.mes}" aria-label="Mês">
+  </nav>${corpo}</main>`;
+}
+
+const equipe = () => S.membros.filter(m => m.papel !== 'admin' && m.ativo && (!S.filtro || m.papel === S.filtro));
+const filtroPapel = () => `<select id="filtro" style="width:auto" aria-label="Filtrar por tipo">
+  <option value="">Todos</option>
+  <option value="funcionario" ${S.filtro === 'funcionario' ? 'selected' : ''}>Funcionários</option>
+  <option value="afiliado" ${S.filtro === 'afiliado' ? 'selected' : ''}>Afiliados</option></select>`;
+
+function abaGeral(){
+  const dados = equipe().map(m => ({m, r:resumo(m)}));
+  const func = dados.filter(d => d.m.papel === 'funcionario');
+  const soma = f => dados.reduce((s, d) => s + f(d), 0);
+  return `<div class="stats">
+    <div class="stat"><small>Em live agora</small><b>${dados.filter(d => d.r.aberta).length}</b></div>
+    <div class="stat"><small>Horas hoje</small><b>${fmtH(soma(d => d.r.hHoje))}</b></div>
+    <div class="stat"><small>Funcionários na meta hoje</small><b>${func.filter(d => d.r.hHoje >= Number(d.m.meta_horas_dia)).length}/${func.length}</b></div>
+    <div class="stat"><small>Vendas no mês</small><b>${brl(soma(d => d.r.vendas))}</b></div>
+    <div class="stat"><small>A pagar no mês</small><b>${brl(soma(d => d.r.total))}</b></div>
+  </div>
+  <div class="card"><div class="row"><h3>Equipe</h3>${filtroPapel()}</div>
+  ${dados.length ? `<div class="scroll"><table><tr><th>Nome</th><th>Tipo</th><th>Agora</th><th>Hoje</th><th>Dias na meta</th><th>Lives/mês</th><th>Horas/mês</th><th>Vendas</th><th>A pagar</th></tr>
+  ${dados.map(({m, r}) => { const meta = Number(m.meta_horas_dia); return `<tr><td>${esc(m.nome)}</td><td>${tagPapel(m.papel)}</td>
+    <td>${r.aberta ? `<span class="tag live">● ${esc(r.aberta.produto)} ${fmtH(horas(r.aberta))}</span>` : '<span class="mut">offline</span>'}</td>
+    <td>${fmtH(r.hHoje)}${meta ? ` <span class="tag ${r.hHoje >= meta ? 'live' : 'no'}">${meta}h</span>` : ''}</td>
+    <td>${meta ? r.diasMeta : '-'}</td><td>${r.qtd}</td><td>${fmtH(r.hMes)}</td><td>${brl(r.vendas)}</td><td><b>${brl(r.total)}</b></td></tr>`; }).join('')}
+  </table></div>` : '<p class="mut">Ninguém cadastrado ainda. Use a aba Pessoas.</p>'}</div>`;
+}
+
+function abaPessoas(){
+  const lista = S.membros.filter(m => !S.filtro || m.papel === S.filtro);
+  return `<div class="card"><div class="row"><h3>Pessoas</h3><span>${filtroPapel()} <button data-a="novaPessoa">+ Adicionar</button></span></div>
+  <div class="scroll"><table><tr><th>Nome</th><th>E-mail</th><th>Tipo</th><th>Fixo</th><th>Comissão</th><th>Meta/dia</th><th>Situação</th><th></th></tr>
+  ${lista.map(m => `<tr><td>${esc(m.nome)}</td><td>${esc(m.email)}</td><td>${tagPapel(m.papel)}</td><td>${brl(m.salario_fixo)}</td><td>${Number(m.comissao_pct)}%</td>
+    <td>${Number(m.meta_horas_dia) ? Number(m.meta_horas_dia) + 'h' : '-'}</td><td>${m.ativo ? 'Ativo' : '<span class="tag no">Inativo</span>'}</td>
+    <td><button class="mini sec" data-a="editPessoa" data-id="${m.id}">Editar</button></td></tr>`).join('')}
+  </table></div></div>`;
+}
+
+const abaLives = () => `<div class="card"><h3 style="margin-top:0">Lives do mês</h3>${tabelaLives(S.lives, true)}</div>`;
+
+function abaVendas(){
+  const ativos = S.membros.filter(m => m.papel !== 'admin' && m.ativo);
+  const nome = id => (S.membros.find(m => m.id === id) || {}).nome || '-';
+  return `<div class="card"><h3 style="margin-top:0">Lançar venda</h3>
+  <form id="fVenda"><div class="grid2">
+    <label>Pessoa<select name="membro_id" required>${ativos.map(m => `<option value="${m.id}">${esc(m.nome)}</option>`).join('')}</select></label>
+    <label>Data<input name="data" type="date" value="${hoje()}" required></label>
+    <label>Valor (R$)<input name="valor" type="number" min="0" step="0.01" required></label>
+    <label>Descrição<input name="descricao"></label></div>
+    <button ${ativos.length ? '' : 'disabled'}>Lançar</button></form></div>
+  <div class="card"><h3 style="margin-top:0">Vendas do mês</h3>
+  ${S.vendas.length ? `<div class="scroll"><table><tr><th>Data</th><th>Pessoa</th><th>Valor</th><th>Descrição</th><th></th></tr>
+  ${S.vendas.map(v => `<tr><td>${v.data.split('-').reverse().join('/')}</td><td>${esc(nome(v.membro_id))}</td><td>${brl(v.valor)}</td><td>${esc(v.descricao)}</td>
+    <td><button class="mini sec" data-a="delVenda" data-id="${v.id}">Excluir</button></td></tr>`).join('')}</table></div>` : '<p class="mut">Nenhuma venda neste mês.</p>'}</div>`;
+}
+
+function abrirPessoa(m){
+  const novo = !m;
+  m = m || {papel:'funcionario', salario_fixo:3000, comissao_pct:0, meta_horas_dia:4, ativo:true};
+  $('#dlg').innerHTML = `<form id="fPessoa"><h3 style="margin-top:0">${novo ? 'Adicionar pessoa' : 'Editar pessoa'}</h3>
+    <input type="hidden" name="id" value="${m.id || ''}">
+    <label>Nome<input name="nome" value="${esc(m.nome)}" required></label>
+    <label>E-mail (é o login da pessoa)<input name="email" type="email" value="${esc(m.email)}" required></label>
+    <label>Tipo<select name="papel">${Object.entries(PAPEL).map(([k, v]) => `<option value="${k}" ${m.papel === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+    <div class="grid2">
+      <label>Fixo mensal (R$)<input name="salario_fixo" type="number" min="0" step="0.01" value="${m.salario_fixo}"></label>
+      <label>Comissão (%)<input name="comissao_pct" type="number" min="0" max="100" step="0.5" value="${m.comissao_pct}"></label>
+      <label>Meta de horas/dia<input name="meta_horas_dia" type="number" min="0" step="0.5" value="${m.meta_horas_dia}"></label>
+      <label>Situação<select name="ativo"><option value="1" ${m.ativo ? 'selected' : ''}>Ativo</option><option value="" ${m.ativo ? '' : 'selected'}>Inativo</option></select></label>
+    </div>
+    <div class="row" style="margin:0;justify-content:flex-end"><button type="button" class="sec" data-a="fechar">Cancelar</button><button>Salvar</button></div></form>`;
+  $('#dlg').showModal();
+}
+
+const ACOES = {
+  modo(){ S.modo = S.modo === 'novo' ? 'entrar' : 'novo'; telaLogin(); },
+  async sair(){ await sb.auth.signOut(); S.modo = 'entrar'; iniciar(); },
+  aba(id){ S.tab = id; telaAdmin(); },
+  novaPessoa(){ abrirPessoa(); },
+  editPessoa(id){ abrirPessoa(S.membros.find(m => m.id === id)); },
+  fechar(){ $('#dlg').close(); },
+  async parar(){ check(await sb.rpc('pas_encerrar_live')); toast('Live encerrada.'); carregar(); },
+  async fecharLive(id){ check(await sb.from('pas_lives').update({fim:new Date().toISOString()}).eq('id', id)); carregar(); },
+  async delLive(id){ if (confirm('Excluir esta live?')) { check(await sb.from('pas_lives').delete().eq('id', id)); carregar(); } },
+  async delVenda(id){ if (confirm('Excluir esta venda?')) { check(await sb.from('pas_vendas').delete().eq('id', id)); carregar(); } },
+};
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-a]');
+  if (b) ACOES[b.dataset.a](b.dataset.id);
+});
+
+const FORMS = {
+  async fLogin(d){
+    const email = d.email.trim().toLowerCase();
+    if (S.modo === 'novo') {
+      const r = await sb.auth.signUp({email, password:d.senha});
+      if (r.error) return toast(r.error.message);
+      S.modo = 'entrar'; telaLogin();
+      return toast('Confirme pelo link enviado ao seu e-mail e depois volte aqui para entrar.');
+    }
+    const r = await sb.auth.signInWithPassword({email, password:d.senha});
+    if (r.error) return toast('E-mail ou senha incorretos, ou e-mail ainda não confirmado.');
+    iniciar();
+  },
+  async fPonto(d){ check(await sb.rpc('pas_iniciar_live', {p_produto:d.produto, p_link:d.link || null})); toast('Ponto registrado. Boa live!'); carregar(); },
+  async fVenda(d){ check(await sb.from('pas_vendas').insert({membro_id:d.membro_id, data:d.data, valor:d.valor, descricao:d.descricao || null})); toast('Venda lançada.'); carregar(); },
+  async fPessoa(d){
+    const reg = {nome:d.nome.trim(), email:d.email.trim().toLowerCase(), papel:d.papel, salario_fixo:d.salario_fixo || 0,
+      comissao_pct:d.comissao_pct || 0, meta_horas_dia:d.meta_horas_dia || 0, ativo:!!d.ativo};
+    check(d.id ? await sb.from('pas_membros').update(reg).eq('id', d.id) : await sb.from('pas_membros').insert(reg));
+    $('#dlg').close(); toast('Salvo.'); carregar();
+  },
+};
+
+document.addEventListener('submit', e => {
+  e.preventDefault();
+  const f = FORMS[e.target.id];
+  if (f) f(Object.fromEntries(new FormData(e.target)));
+});
+
+document.addEventListener('change', e => {
+  if (e.target.id === 'mes' && e.target.value) { S.mes = e.target.value; carregar(); }
+  if (e.target.id === 'filtro') { S.filtro = e.target.value; telaAdmin(); }
+  if (e.target.name === 'papel' && !$('#fPessoa [name=id]').value) {
+    const f = e.target.form, p = {funcionario:[3000, 0, 4], afiliado:[0, 50, 0], admin:[0, 0, 0]}[e.target.value];
+    f.salario_fixo.value = p[0]; f.comissao_pct.value = p[1]; f.meta_horas_dia.value = p[2];
+  }
+});
+
+// Mantem "em live agora" atualizado sem atrapalhar quem esta digitando
+setInterval(() => {
+  if (S.eu && !$('#dlg').open && !document.activeElement.closest('form') && !document.hidden) carregar();
+}, 60000);
+
+iniciar();
+</script>
+</body>
+</html>

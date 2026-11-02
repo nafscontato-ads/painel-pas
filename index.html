@@ -6,17 +6,31 @@
 <title>Painel PAS</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
-:root{--or:#EE4D2D;--or2:#FF7337;--bg:#FFF8F5;--line:#F3E1DA;--tx:#2B2522;--mut:#7A6F6A;--ok:#14804A;--okb:#E5F6EC;--bad:#B3261E;--badb:#FDECEA}
+:root{--or:#EE4D2D;--or2:#FF7337;--bg:#FAFAFA;--line:#E9E9EC;--tx:#17171A;--mut:#74747C;--ok:#14804A;--okb:#E5F6EC;--bad:#B3261E;--badb:#FDECEA}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-header{background:var(--or);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-header b{font-size:18px;margin-right:auto}
-header button{background:#fff;color:var(--or);padding:6px 12px}
-main{max-width:1100px;margin:auto;padding:16px}
-nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
-nav button{background:#fff;color:var(--tx);border:1px solid var(--line)}
-nav button.on{background:var(--or);color:#fff;border-color:var(--or)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:14px max(16px,calc((100vw - 1100px)/2 + 16px));display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{width:40px;height:40px;border-radius:10px;background:var(--or);color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px}
+.marca{margin-right:auto;line-height:1.2}.marca b{font-size:20px;display:block}.marca small{color:var(--mut)}
+main{max-width:1100px;margin:auto;padding:20px 16px}
+nav{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+nav button{background:none;color:var(--mut);padding:8px 12px}
+nav button.on{background:#FFEDE6;color:var(--or)}
 nav input{margin-left:auto;width:auto}
+.toolbar{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.toolbar input{flex:1 1 220px;width:auto}.toolbar select{width:auto}
+.seg{display:flex;background:#F2F2F4;border-radius:8px;padding:3px}
+.seg button{background:none;color:var(--mut);padding:6px 12px;font-weight:500}.seg button.on{background:#fff;color:var(--tx);box-shadow:0 1px 2px #0002}
+.item{background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:10px}
+.item summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap}
+.item summary::-webkit-details-marker{display:none}
+.chev{color:var(--mut);transition:transform .15s}.item[open] .chev{transform:rotate(90deg)}
+.quem{margin-right:auto;min-width:150px}.quem b{font-size:16px;margin-right:6px}.quem small{display:block;color:var(--mut)}
+.pill{border:1px solid var(--line);border-radius:99px;padding:2px 10px;font-size:13px;white-space:nowrap}
+.corpo{border-top:1px solid var(--line);padding:14px 16px}
+.tag.aq{background:#FFF4D6;color:#8A6100}
+.stbox{border:1px solid var(--line);border-radius:10px;background:#FAFAFA;padding:12px 14px;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.stform{display:flex;gap:10px;flex-wrap:wrap}.stform label{margin:0}
 button{background:var(--or);color:#fff;border:0;border-radius:8px;padding:9px 14px;font:inherit;font-weight:600;cursor:pointer}
 button:hover{filter:brightness(.95)}
 button.sec{background:#fff;color:var(--or);border:1px solid var(--or)}
@@ -26,9 +40,9 @@ input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-rad
 label{display:block;font-size:13px;color:var(--mut);margin-bottom:10px}
 label input,label select{margin-top:3px}
 .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
-.stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
-.stat small{color:var(--mut);display:block}.stat b{font-size:22px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.stat small{color:var(--mut);display:block;margin-bottom:8px}.stat b{font-size:26px;letter-spacing:-.5px}.stat span{display:block;color:var(--mut);font-size:13px}
 .scroll{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th{text-align:left;color:var(--mut);font-weight:600;font-size:13px;white-space:nowrap}
@@ -64,10 +78,10 @@ const fmtH = h => { const m = Math.round(h * 60); return `${Math.floor(m / 60)}h
 const PAPEL = {admin:'Administrador', funcionario:'Funcionário', afiliado:'Afiliado'};
 const tagPapel = p => `<span class="tag ${p === 'funcionario' ? 'func' : ''}">${PAPEL[p]}</span>`;
 const linkLive = u => /^https?:\/\//i.test(u || '') ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">abrir</a>` : '';
-function toast(t){ const e = $('#toast'); e.textContent = t; e.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = 'none', 4000); }
+function toast(t){ const e = $('#toast'); ($('#dlg').open ? $('#dlg') : document.body).append(e); e.textContent = t; e.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = 'none', 4000); }
 const check = r => { if (r.error) { toast(r.error.message); throw r.error; } return r.data; };
 
-const S = {eu:null, tab:'geral', mes:hoje().slice(0,7), filtro:'', membros:[], lives:[], vendas:[], modo:'entrar'};
+const S = {eu:null, tab:'geral', mes:hoje().slice(0,7), filtro:'', fStatus:'', hist:[], busca:'', visao:'cards', abertos:new Set(), membros:[], lives:[], vendas:[], modo:'entrar'};
 
 function limitesMes(){
   const [y, m] = S.mes.split('-').map(Number);
@@ -85,17 +99,46 @@ async function iniciar(){
 
 async function carregar(){
   const b = limitesMes();
-  const [m, l, a, v] = await Promise.all([
+  const [m, l, a, v, h] = await Promise.all([
     sb.from('pas_membros').select('*').order('nome'),
     sb.from('pas_lives').select('*').gte('inicio', b.ini).lt('inicio', b.fim).order('inicio', {ascending:false}),
     sb.from('pas_lives').select('*').is('fim', null),
     sb.from('pas_vendas').select('*').gte('data', b.dIni).lt('data', b.dFim).order('data', {ascending:false}),
+    sb.from('pas_status_hist').select('*').order('desde').order('criado_em'),
   ]);
+  S.hist = check(h);
   S.membros = check(m);
   const abertas = check(a), lista = check(l);
   S.lives = lista.concat(abertas.filter(x => !lista.some(y => y.id === x.id)));
   S.vendas = check(v);
   S.eu.papel === 'admin' ? telaAdmin() : telaMembro();
+}
+
+const STATUS = {parado:'Parado', aquecendo:'Aquecendo', vendendo:'Vendendo'};
+const TAG_ST = {parado:'func', aquecendo:'aq', vendendo:'live'};
+const dataBr = d => d.split('-').reverse().join('/');
+const dias = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
+const plural = n => `${n} dia${n === 1 ? '' : 's'}`;
+
+function statusInfo(m){
+  const linhas = S.hist.filter(h => h.membro_id === m.id);
+  const segs = linhas.map((h, i) => ({...h, dias:Math.max(0, dias(h.desde, i < linhas.length - 1 ? linhas[i + 1].desde : hoje()))}));
+  return {segs, atual:segs[segs.length - 1] || {status:'parado', desde:hoje(), dias:0}, anterior:segs[segs.length - 2]};
+}
+
+function blocoStatus(m){
+  const {segs, atual, anterior} = statusInfo(m);
+  const totais = {};
+  segs.forEach(s => totais[s.status] = (totais[s.status] || 0) + s.dias);
+  const aq = [...segs].reverse().find(s => s.status === 'aquecendo');
+  return `<div class="stbox"><div>
+      <div><span class="tag ${TAG_ST[atual.status]}">${STATUS[atual.status]}</span> há <b>${plural(atual.dias)}</b> · desde ${dataBr(atual.desde)}</div>
+      ${aq && aq !== atual ? `<div class="mut">Começou a aquecer em ${dataBr(aq.desde)} · ficou ${plural(aq.dias)} aquecendo</div>` : ''}
+      <div class="mut">${Object.entries(totais).map(([k, v]) => `${STATUS[k]}: ${v}d`).join(' · ')}</div>
+    </div><div class="stform">
+      <label>Status<select data-status="${m.id}">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${atual.status === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+      <label>Começou em<input type="date" data-desde="${atual.id || ''}" value="${atual.desde}" max="${hoje()}" min="${anterior ? anterior.desde : ''}"></label>
+    </div></div>`;
 }
 
 function resumo(m){
@@ -135,7 +178,8 @@ function telaSemAcesso(email){
     <button class="sec" data-a="sair">Sair</button></div>`;
 }
 
-const topo = () => `<header><b>Painel PAS</b><span>${esc(S.eu.nome)}</span><button data-a="sair">Sair</button></header>`;
+const topo = () => `<header><div class="logo">PAS</div><div class="marca"><b>Painel PAS</b><small>Lives, ponto e comissões em tempo real</small></div>
+  <span class="mut">${esc(S.eu.nome)}</span>${S.eu.papel === 'admin' ? '<button data-a="novaPessoa">+ Nova pessoa</button>' : ''}<button class="sec" data-a="sair">Sair</button></header>`;
 
 function telaMembro(){
   const r = resumo(S.eu), m = S.eu, meta = Number(m.meta_horas_dia);
@@ -151,6 +195,7 @@ function telaMembro(){
              <button class="big">▶ Iniciar live</button></form>`}
     </div>
     <div class="stats">
+      <div class="stat"><small>Meu status</small><b>${STATUS[statusInfo(m).atual.status]}</b><span>há ${plural(statusInfo(m).atual.dias)}</span></div>
       <div class="stat"><small>Horas hoje${meta ? ` (meta ${meta}h)` : ''}</small><b>${fmtH(r.hHoje)}</b></div>
       <div class="stat"><small>Horas no mês</small><b>${fmtH(r.hMes)}</b></div>
       <div class="stat"><small>Lives no mês</small><b>${r.qtd}</b></div>
@@ -180,30 +225,59 @@ function telaAdmin(){
   </nav>${corpo}</main>`;
 }
 
-const equipe = () => S.membros.filter(m => m.papel !== 'admin' && m.ativo && (!S.filtro || m.papel === S.filtro));
+const equipe = () => S.membros.filter(m => m.papel !== 'admin' && m.ativo && (!S.filtro || m.papel === S.filtro)
+  && (!S.fStatus || statusInfo(m).atual.status === S.fStatus)
+  && (m.nome + ' ' + m.email).toLowerCase().includes(S.busca.toLowerCase()));
 const filtroPapel = () => `<select id="filtro" style="width:auto" aria-label="Filtrar por tipo">
   <option value="">Todos</option>
   <option value="funcionario" ${S.filtro === 'funcionario' ? 'selected' : ''}>Funcionários</option>
   <option value="afiliado" ${S.filtro === 'afiliado' ? 'selected' : ''}>Afiliados</option></select>`;
 
 function abaGeral(){
-  const dados = equipe().map(m => ({m, r:resumo(m)}));
+  const dados = S.membros.filter(m => m.papel !== 'admin' && m.ativo).map(m => ({m, r:resumo(m)}));
   const func = dados.filter(d => d.m.papel === 'funcionario');
   const soma = f => dados.reduce((s, d) => s + f(d), 0);
+  const porStatus = s => dados.filter(d => statusInfo(d.m).atual.status === s).length;
+  const stat = (t, v, sub) => `<div class="stat"><small>${t}</small><b>${v}</b><span>${sub}</span></div>`;
   return `<div class="stats">
-    <div class="stat"><small>Em live agora</small><b>${dados.filter(d => d.r.aberta).length}</b></div>
-    <div class="stat"><small>Horas hoje</small><b>${fmtH(soma(d => d.r.hHoje))}</b></div>
-    <div class="stat"><small>Funcionários na meta hoje</small><b>${func.filter(d => d.r.hHoje >= Number(d.m.meta_horas_dia)).length}/${func.length}</b></div>
-    <div class="stat"><small>Vendas no mês</small><b>${brl(soma(d => d.r.vendas))}</b></div>
-    <div class="stat"><small>A pagar no mês</small><b>${brl(soma(d => d.r.total))}</b></div>
+    ${stat('Equipe', dados.length, `${func.length} funcionários · ${dados.length - func.length} afiliados`)}
+    ${stat('Em live agora', dados.filter(d => d.r.aberta).length, `${fmtH(soma(d => d.r.hHoje))} de live hoje`)}
+    ${stat('Aquecendo', porStatus('aquecendo'), `${porStatus('parado')} parados`)}
+    ${stat('Vendendo', porStatus('vendendo'), `${func.filter(d => d.r.hHoje >= Number(d.m.meta_horas_dia)).length}/${func.length} funcionários na meta hoje`)}
+    ${stat('Vendas no mês', brl(soma(d => d.r.vendas)), `${brl(soma(d => d.r.total))} a pagar`)}
   </div>
-  <div class="card"><div class="row"><h3>Equipe</h3>${filtroPapel()}</div>
-  ${dados.length ? `<div class="scroll"><table><tr><th>Nome</th><th>Tipo</th><th>Agora</th><th>Hoje</th><th>Dias na meta</th><th>Lives/mês</th><th>Horas/mês</th><th>Vendas</th><th>A pagar</th></tr>
-  ${dados.map(({m, r}) => { const meta = Number(m.meta_horas_dia); return `<tr><td>${esc(m.nome)}</td><td>${tagPapel(m.papel)}</td>
+  <div class="toolbar">
+    <input id="busca" type="search" placeholder="Buscar pessoa ou e-mail..." value="${esc(S.busca)}" aria-label="Buscar">
+    ${filtroPapel()}
+    <select id="fStatus" aria-label="Filtrar por status"><option value="">Todos os status</option>${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${S.fStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
+    <div class="seg"><button class="${S.visao === 'cards' ? 'on' : ''}" data-a="visao" data-id="cards">Por pessoa</button><button class="${S.visao === 'tabela' ? 'on' : ''}" data-a="visao" data-id="tabela">Tabela geral</button></div>
+  </div>
+  <div id="lista">${listaEquipe()}</div>`;
+}
+
+function listaEquipe(){
+  const dados = equipe().map(m => ({m, r:resumo(m)}));
+  if (!dados.length) return '<div class="card mut">Ninguém encontrado. Use "+ Nova pessoa" para cadastrar.</div>';
+  if (S.visao === 'tabela') return `<div class="card scroll"><table><tr><th>Nome</th><th>Tipo</th><th>Status</th><th>Agora</th><th>Hoje</th><th>Dias na meta</th><th>Lives/mês</th><th>Horas/mês</th><th>Vendas</th><th>A pagar</th></tr>
+  ${dados.map(({m, r}) => { const meta = Number(m.meta_horas_dia), st = statusInfo(m).atual; return `<tr><td>${esc(m.nome)}</td><td>${tagPapel(m.papel)}</td>
+    <td><span class="tag ${TAG_ST[st.status]}">${STATUS[st.status]} ${st.dias}d</span></td>
     <td>${r.aberta ? `<span class="tag live">● ${esc(r.aberta.produto)} ${fmtH(horas(r.aberta))}</span>` : '<span class="mut">offline</span>'}</td>
     <td>${fmtH(r.hHoje)}${meta ? ` <span class="tag ${r.hHoje >= meta ? 'live' : 'no'}">${meta}h</span>` : ''}</td>
     <td>${meta ? r.diasMeta : '-'}</td><td>${r.qtd}</td><td>${fmtH(r.hMes)}</td><td>${brl(r.vendas)}</td><td><b>${brl(r.total)}</b></td></tr>`; }).join('')}
-  </table></div>` : '<p class="mut">Ninguém cadastrado ainda. Use a aba Pessoas.</p>'}</div>`;
+  </table></div>`;
+  return dados.map(({m, r}) => { const meta = Number(m.meta_horas_dia), st = statusInfo(m).atual; return `<details class="item" data-m="${m.id}" ${S.abertos.has(m.id) ? 'open' : ''}><summary>
+    <span class="chev">›</span>
+    <div class="quem"><b>${esc(m.nome)}</b>${tagPapel(m.papel)}<small>${r.qtd} lives · ${fmtH(r.hMes)} no mês</small></div>
+    <span class="tag ${TAG_ST[st.status]}">${STATUS[st.status]} há ${st.dias}d</span>
+    ${r.aberta ? `<span class="tag live">● ao vivo ${fmtH(horas(r.aberta))}</span>` : ''}
+    ${meta ? `<span class="tag ${r.hHoje >= meta ? 'live' : 'no'}">hoje ${fmtH(r.hHoje)}/${meta}h</span>` : ''}
+    <span class="pill">Vendas ${brl(r.vendas)}</span><span class="pill"><b>A pagar ${brl(r.total)}</b></span>
+    <button class="mini sec" data-a="editPessoa" data-id="${m.id}">Editar</button>
+  </summary><div class="corpo">
+    ${blocoStatus(m)}
+    <p class="mut" style="margin-top:0">${esc(m.email)} · fixo ${brl(m.salario_fixo)} · comissão ${Number(m.comissao_pct)}% = ${brl(r.comissao)}${meta ? ` · ${r.diasMeta} dias na meta` : ''}</p>
+    ${tabelaLives(S.lives.filter(l => l.membro_id === m.id), false)}
+  </div></details>`; }).join('');
 }
 
 function abaPessoas(){
@@ -238,7 +312,7 @@ function abrirPessoa(m){
   const novo = !m;
   m = m || {papel:'funcionario', salario_fixo:3000, comissao_pct:0, meta_horas_dia:4, ativo:true};
   $('#dlg').innerHTML = `<form id="fPessoa"><h3 style="margin-top:0">${novo ? 'Adicionar pessoa' : 'Editar pessoa'}</h3>
-    <input type="hidden" name="id" value="${m.id || ''}">
+    <input type="hidden" name="pid" value="${m.id || ''}">
     <label>Nome<input name="nome" value="${esc(m.nome)}" required></label>
     <label>E-mail (é o login da pessoa)<input name="email" type="email" value="${esc(m.email)}" required></label>
     <label>Tipo<select name="papel">${Object.entries(PAPEL).map(([k, v]) => `<option value="${k}" ${m.papel === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
@@ -256,6 +330,7 @@ const ACOES = {
   modo(){ S.modo = S.modo === 'novo' ? 'entrar' : 'novo'; telaLogin(); },
   async sair(){ await sb.auth.signOut(); S.modo = 'entrar'; iniciar(); },
   aba(id){ S.tab = id; telaAdmin(); },
+  visao(id){ S.visao = id; telaAdmin(); },
   novaPessoa(){ abrirPessoa(); },
   editPessoa(id){ abrirPessoa(S.membros.find(m => m.id === id)); },
   fechar(){ $('#dlg').close(); },
@@ -267,8 +342,26 @@ const ACOES = {
 
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-a]');
-  if (b) ACOES[b.dataset.a](b.dataset.id);
+  if (b) { e.preventDefault(); ACOES[b.dataset.a](b.dataset.id); }
 });
+
+document.addEventListener('input', e => {
+  if (e.target.id === 'busca') { S.busca = e.target.value; $('#lista').innerHTML = listaEquipe(); }
+});
+
+document.addEventListener('toggle', e => {
+  const id = e.target.dataset && e.target.dataset.m;
+  if (id) e.target.open ? S.abertos.add(id) : S.abertos.delete(id);
+}, true);
+
+async function mudarStatus(membro_id, status){
+  check(await sb.from('pas_status_hist').insert({membro_id, status, desde:hoje()}));
+  toast(`Status alterado para ${STATUS[status]}.`); carregar();
+}
+async function mudarDesde(id, desde){
+  check(await sb.from('pas_status_hist').update({desde}).eq('id', id));
+  toast('Data atualizada.'); carregar();
+}
 
 const FORMS = {
   async fLogin(d){
@@ -288,8 +381,8 @@ const FORMS = {
   async fPessoa(d){
     const reg = {nome:d.nome.trim(), email:d.email.trim().toLowerCase(), papel:d.papel, salario_fixo:d.salario_fixo || 0,
       comissao_pct:d.comissao_pct || 0, meta_horas_dia:d.meta_horas_dia || 0, ativo:!!d.ativo};
-    check(d.id ? await sb.from('pas_membros').update(reg).eq('id', d.id) : await sb.from('pas_membros').insert(reg));
-    $('#dlg').close(); toast('Salvo.'); carregar();
+    check(d.pid ? await sb.from('pas_membros').update(reg).eq('id', d.pid) : await sb.from('pas_membros').insert(reg));
+    $('#dlg').close(); S.filtro = ''; toast('Salvo.'); carregar();
   },
 };
 
@@ -301,8 +394,11 @@ document.addEventListener('submit', e => {
 
 document.addEventListener('change', e => {
   if (e.target.id === 'mes' && e.target.value) { S.mes = e.target.value; carregar(); }
-  if (e.target.id === 'filtro') { S.filtro = e.target.value; telaAdmin(); }
-  if (e.target.name === 'papel' && !$('#fPessoa [name=id]').value) {
+  if (e.target.id === 'fStatus') { S.fStatus = e.target.value; $('#lista').innerHTML = listaEquipe(); }
+  if (e.target.dataset.status) mudarStatus(e.target.dataset.status, e.target.value);
+  if (e.target.dataset.desde && e.target.value) mudarDesde(e.target.dataset.desde, e.target.value);
+  if (e.target.id === 'filtro') { S.filtro = e.target.value; S.tab === 'geral' ? ($('#lista').innerHTML = listaEquipe()) : telaAdmin(); }
+  if (e.target.name === 'papel' && !$('#fPessoa [name=pid]').value) {
     const f = e.target.form, p = {funcionario:[3000, 0, 4], afiliado:[0, 50, 0], admin:[0, 0, 0]}[e.target.value];
     f.salario_fixo.value = p[0]; f.comissao_pct.value = p[1]; f.meta_horas_dia.value = p[2];
   }
@@ -310,7 +406,7 @@ document.addEventListener('change', e => {
 
 // Mantem "em live agora" atualizado sem atrapalhar quem esta digitando
 setInterval(() => {
-  if (S.eu && !$('#dlg').open && !document.activeElement.closest('form') && !document.hidden) carregar();
+  if (S.eu && !$('#dlg').open && !document.activeElement.closest('form') && !/INPUT|SELECT/.test(document.activeElement.tagName) && !document.hidden) carregar();
 }, 60000);
 
 iniciar();
